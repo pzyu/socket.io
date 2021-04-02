@@ -2,7 +2,7 @@
 const express = require('express');
 const app = express();
 const path = require('path');
-const server = require('https').createServer(app);
+const server = require('http').createServer(app);
 const io = require('socket.io')(server);
 const port = process.env.PORT || 3000;
 
@@ -36,8 +36,8 @@ io.on('connection', (socket) => {
         //socket.broadcast.emit('new item', data);
     });
     
-    socket.on('remove item', (data) =>{
-        io.emit('remove item', data);
+    socket.on('update item', (data) =>{
+        io.emit('update item', data);
     });
 
     

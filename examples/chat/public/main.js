@@ -18,11 +18,20 @@ $(function () {
     const $todoPage = $('.todo.page'); // The chatroom page
 
     const $addItemForm = $("#add-item-form");
-    const $todoListContainer = $("#todo-list-container");
+    const $addItemInput = $("#add-item-input");
+    const $addItemNameInput = $("#add-item-name-input");
 
+    const $todoListContainer = $("#todo-list-container");
+    const $todoCompletedListContainer = $("#todo-list-completed-container");
+    const $todoNotDoingListContainer = $("#todo-list-not-doing-container");
+
+    // Queue number
+    const $queueNumberContainer = $("#queue-number-container");
+    const $queueLabel = $("#queue-label");
+    const $queueNumber = $("#queue-number");
 
     let isHost = false;
-    let hostTodoList = [];
+    let itemList = [];
 
     const socket = io();
 
@@ -38,7 +47,7 @@ $(function () {
 
         console.log("Item: " + item + " owner: " + owner);
 
-        $(this).trigger("reset");
+        $addItemInput.val("");
 
         let itemData = {
             item: item,
@@ -48,7 +57,7 @@ $(function () {
         socket.emit('new item', itemData);
     });
 
-    const addNewItem = (item, owner) => {
+    const addNewItem = (item, owner, targetContainer) => {
         console.log("Adding new item");
 
         /*
@@ -68,34 +77,86 @@ $(function () {
             .text("@ " + owner);
 
         const $controlsDiv = $('<div class="controls item-control-visible"></div>');
+        const $inProgressButton = $('<button class="btn btn-primary mx-2">In progress</button>')
+            .click(function () {
+                updateItemStatus($(this), "in progress");
+            });
         const $completeButton = $('<button class="btn btn-success mx-2">Complete</button>')
             .click(function () {
-                removeItem($(this));
+                updateItemStatus($(this), "complete");
             });
-        const $deleteButton = $('<button class="btn btn-danger mx-2">Delete</button>')
+        const $deleteButton = $('<button class="btn btn-danger mx-2">Not doing</button>')
             .click(function () {
-                removeItem($(this));
+                updateItemStatus($(this), "not doing");
+            });
+        const $removeButton = $('<button class="btn btn-light mx-2">X</button>')
+            .click(function () {
+                updateItemStatus($(this), "remove");
             });
 
-        $controlsDiv.append($completeButton, $deleteButton);
+        $controlsDiv.append($inProgressButton, $completeButton, $deleteButton, $removeButton);
 
-        const $itemDiv = $('<li class="list-group-item my-2"/>')
+        const $itemDiv = $('<li class="list-group-item"/>')
             .data('owner', owner)
             .data('item', item)
             .append($itemDescriptionLabel, $itemOwnerLabel);
-        
+
+        addNewItemElement($itemDiv, targetContainer);
+
+
         // If we are host
         if (isHost) {
-            addToHostList(item, owner);
-            
+            // Add controls
             $itemDiv.append($controlsDiv);
-        }
-        
-        addNewItemElement($itemDiv);
 
+            // Build item list
+            buildItemList();
+        }
+
+
+        // If we have moved something, check queue
+        checkQueueNumber();
     }
 
-    const removeItem = (el) => {
+    const buildItemList = () => {
+        itemList = [];
+
+        $todoListContainer.children().each(function (index) {
+            let itemData = {
+                name: $(this).data("item"),
+                owner: $(this).data("owner"),
+                status: "in progress",
+            }
+
+            itemList.push(itemData);
+        });
+
+        $todoCompletedListContainer.children().each(function (index) {
+            let itemData = {
+                name: $(this).data("item"),
+                owner: $(this).data("owner"),
+                status: "completed",
+            }
+
+            itemList.push(itemData);
+        });
+
+
+        $todoNotDoingListContainer.children().each(function (index) {
+            let itemData = {
+                name: $(this).data("item"),
+                owner: $(this).data("owner"),
+                status: "not doing",
+            }
+
+            itemList.push(itemData);
+        });
+
+
+        console.log("Item list: " + JSON.stringify(itemList));
+    }
+
+    const updateItemStatus = (el, status) => {
         let parentDiv = el.closest(".list-group-item")
 
         let item = parentDiv.data("item");
@@ -103,41 +164,17 @@ $(function () {
 
         let itemData = {
             item: item,
-            owner: owner
+            owner: owner,
+            status: status
         }
 
-        socket.emit('remove item', itemData);
+        socket.emit('update item', itemData);
     }
 
-    const addNewItemElement = (el) => {
+    const addNewItemElement = (el, targetContainer) => {
         const $el = $(el);
-        $el.hide().fadeIn("normal");
-        $todoListContainer.append($el);
-    }
-
-    const addToHostList = (item, owner) => {
-        var itemData = {
-            item: item,
-            owner: owner,
-        };
-
-        hostTodoList.push(itemData);
-
-        console.log("Host list: " + JSON.stringify(hostTodoList));
-    }
-    
-    const removeFromHostList = (item, owner) => {
-        
-        var filtered = hostTodoList.filter(function(element){
-            console.log("Item: " + element.item + " owner: " + element.owner);
-            
-            let isMatch = element.item == item && element.owner == owner;
-            
-            return !isMatch;
-        });
-        
-        hostTodoList = filtered;
-        console.log("Filtered: " + JSON.stringify(hostTodoList));        
+        $el.hide().fadeIn("fast");
+        targetContainer.append($el);
     }
 
     // Prompt for setting a username
@@ -168,6 +205,8 @@ $(function () {
                 // Request for host list
                 socket.emit('request for list', socket.id);
             }
+
+            $addItemNameInput.val(username);
         }
     }
 
@@ -215,61 +254,150 @@ $(function () {
         if (!username) {
             return;
         }
-        
+
         console.log(`New item ${data.item}, owner ${data.owner}`);
 
-        addNewItem(data.item, data.owner);
+        addNewItem(data.item, data.owner, $todoListContainer);
     });
 
-    socket.on('remove item', (data) => {
+    socket.on('update item', (data) => {
         if (!username) {
             return;
         }
-        
-        console.log("Removing item: " + JSON.stringify(data));
+
+        console.log("Updating item: " + JSON.stringify(data));
+
+        let $targetContainer = $todoCompletedListContainer;
+
+        switch (data.status) {
+            case "in progress":
+                $targetContainer = $todoListContainer;
+                break;
+            case "not doing":
+                $targetContainer = $todoNotDoingListContainer;
+                break;
+            case "remove":
+                $targetContainer = null;
+                break;
+        }
 
         $todoListContainer.children().filter(function () {
-            if ($(this).data("item") == data.item && $(this).data("owner") == data.owner) {
-                console.log("Found match");
-
-                $(this).fadeOut("normal", function () {
-                    $(this.remove());
-                });
-                
-                if (isHost) {
-                    removeFromHostList(data.item, data.owner);
-                }
-            }
+            findAndMove($(this), $targetContainer, data);
+            return;
+        });
+        $todoCompletedListContainer.children().filter(function () {
+            findAndMove($(this), $targetContainer, data);
+            return;
+        });
+        $todoNotDoingListContainer.children().filter(function () {
+            findAndMove($(this), $targetContainer, data);
+            return;
         });
     });
-    
-    
+
+    const findAndMove = (el, target, data) => {
+        console.log("Item: " + $(el).data("item"));
+
+        if ($(el).data("item") == data.item && $(el).data("owner") == data.owner) {
+            $(el).fadeOut("fast", function () {
+                $(el).detach().appendTo(target);
+                $(el).fadeIn("fast");
+
+                if (isHost) {
+                    // Build item list again if we have moved
+                    buildItemList();
+                }
+
+                // If we have moved something, check queue
+                checkQueueNumber();
+            });
+        }
+    }
+
+    const checkQueueNumber = () => {
+        let hasItemInQueue = false;
+        let queueNumber = -1;
+
+        // Go through in progress list
+        $todoListContainer.children().each(function (index) {
+
+            if ($(this).data("owner") == username && !hasItemInQueue) {
+                console.log("My next item is: " + index);
+
+                queueNumber = index + 1;
+                $queueNumber.text(queueNumber);
+
+                hasItemInQueue = true;
+
+                return;
+            }
+        });
+
+        // Check if has item in queue
+        if (hasItemInQueue) {
+            $($queueNumberContainer).fadeIn("fast");
+        } else {
+            $($queueNumberContainer).fadeOut("fast");
+        }
+
+        $queueLabel.removeClass("shake-little");
+        $queueLabel.removeClass("shake");
+        $queueLabel.removeClass("shake-hard");
+        $queueLabel.removeClass("shake-crazy");
+
+        if (queueNumber == 4) {
+            $queueLabel.addClass("shake-little");
+        } else if (queueNumber == 3) {
+            $queueLabel.addClass("shake");
+        } else if (queueNumber == 2) {
+            $queueLabel.addClass("shake-hard");
+        } else if (queueNumber == 1) {
+            $queueLabel.addClass("shake-crazy");
+        }
+
+    }
+
+
     socket.on('request for list', (data) => {
         if (!username) {
             return;
         }
-        
+
         if (isHost) {
             console.log(`Request received from ${data}`);
-            
+
             let response = {
                 requestorId: data,
-                list: hostTodoList
-            }            
+                list: itemList
+            }
             socket.emit('response for list', response);
-        }    
+        }
     });
-    
+
     // Request has been responded with
     socket.on('response for list', (data) => {
         if (!username) {
             return;
         }
-        
+
         console.log("Received response: " + JSON.stringify(data));
-        
+
         data.forEach((item) => {
-           addNewItem(item.item, item.owner); 
+            let targetContainer = null;
+
+            switch (item.status) {
+                case "in progress":
+                    targetContainer = $todoListContainer;
+                    break;
+                case "completed":
+                    targetContainer = $todoCompletedListContainer;
+                    break;
+                case "not doing":
+                    targetContainer = $todoNotDoingListContainer;
+                    break;
+            }
+
+            addNewItem(item.name, item.owner, targetContainer);
         });
     });
 
