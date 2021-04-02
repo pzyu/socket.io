@@ -13,6 +13,7 @@ $(function () {
     const $messages = $('.messages'); // Messages area
     const $inputMessage = $('.inputMessage'); // Input message input box
 
+    const $pages = $('.page'); // The page
     const $loginPage = $('.login.page'); // The login page
     const $chatPage = $('.chat.page'); // The chatroom page
     const $todoPage = $('.todo.page'); // The chatroom page
@@ -32,6 +33,7 @@ $(function () {
 
     let isHost = false;
     let itemList = [];
+    let queueNumber = -1;
 
     const socket = io();
 
@@ -316,16 +318,16 @@ $(function () {
 
     const checkQueueNumber = () => {
         let hasItemInQueue = false;
-        let queueNumber = -1;
-
+        let newQueueNumber = -1;
+        
         // Go through in progress list
         $todoListContainer.children().each(function (index) {
 
             if ($(this).data("owner") == username && !hasItemInQueue) {
                 console.log("My next item is: " + index);
 
-                queueNumber = index + 1;
-                $queueNumber.text(queueNumber);
+                newQueueNumber = index + 1;
+                $queueNumber.text(newQueueNumber);
 
                 hasItemInQueue = true;
 
@@ -339,24 +341,67 @@ $(function () {
         } else {
             $($queueNumberContainer).fadeOut("fast");
         }
+        
+        console.log("New: "+ newQueueNumber + " queue: " + queueNumber);
 
-        $queueLabel.removeClass("shake-little");
-        $queueLabel.removeClass("shake");
-        $queueLabel.removeClass("shake-hard");
-        $queueLabel.removeClass("shake-crazy");
+        // So we don't play effects repeatedly
+        if (newQueueNumber != queueNumber) {
+            queueNumber = newQueueNumber;            
 
-        if (queueNumber == 4) {
-            $queueLabel.addClass("shake-little");
-        } else if (queueNumber == 3) {
-            $queueLabel.addClass("shake");
-        } else if (queueNumber == 2) {
-            $queueLabel.addClass("shake-hard");
-        } else if (queueNumber == 1) {
-            $queueLabel.addClass("shake-crazy");
+            $queueLabel.removeClass("shake-little");
+            $queueLabel.removeClass("shake");
+            $queueLabel.removeClass("shake-hard");
+            $queueLabel.removeClass("shake-crazy");
+            
+            if (queueNumber == 4) {
+                $queueLabel.addClass("shake-little");
+            } else if (queueNumber == 3) {
+                $queueLabel.addClass("shake");
+            } else if (queueNumber == 2) {
+                $queueLabel.addClass("shake-hard");
+            } else if (queueNumber == 1) {
+                $queueLabel.addClass("shake-crazy");
+                showEffects();
+            }
         }
-
     }
 
+
+    const showEffects = () => {
+        var end = Date.now() + (3 * 1000);
+
+        var colors = ['#FFD700', '#ffffff'];
+
+        (function frame() {
+            confetti({
+                particleCount: 2,
+                angle: 60,
+                spread: 55,
+                origin: {
+                    x: 0
+                },
+                colors: colors
+            });
+            confetti({
+                particleCount: 2,
+                angle: 120,
+                spread: 55,
+                origin: {
+                    x: 1
+                },
+                colors: colors
+            });
+
+            if (Date.now() < end) {
+                requestAnimationFrame(frame);
+            }
+        }());
+        
+        var audioElement = new Audio('horn.wav');
+        audioElement.play();
+        
+        $pages.addClass("animate-background");
+    }
 
     socket.on('request for list', (data) => {
         if (!username) {
