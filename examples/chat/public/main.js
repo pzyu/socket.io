@@ -402,6 +402,10 @@ $(function () {
         audioElement.play();
         
         $pages.addClass("animate-background");
+        
+        setTimeout(()=>{
+            $pages.removeClass("animate-background");    
+        }, 3000);
     }
 
     socket.on('request for list', (data) => {

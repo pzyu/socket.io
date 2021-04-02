@@ -135,7 +135,6 @@ ul {
   -moz-animation:    flash-background 0.1s infinite; /* Fx 5+ */
   -o-animation:      flash-background 0.1s infinite; /* Opera 12+ */
   animation:         flash-background 0.1s infinite; /* IE 10+, Fx 29+ */
-  animation-iteration-count: 30;
 }
 
 @-webkit-keyframes flash-background {
