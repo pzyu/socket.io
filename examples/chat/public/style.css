@@ -10,20 +10,13 @@ html {
 }
 
 html, input {
-  font-family:
-    "HelveticaNeue-Light",
-    "Helvetica Neue Light",
-    "Helvetica Neue",
-    Helvetica,
-    Arial,
-    "Lucida Grande",
-    sans-serif;
 }
 
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
+  font-family: "Comic Sans MS", "Comic Sans", cursive !important;
 }
 
 ul {
@@ -50,6 +43,8 @@ ul {
 
 .login.page {
   background-color: #000;
+  z-index: 3;
+  display: block;
 }
 
 .login.page .form {
@@ -107,6 +102,31 @@ ul {
   font-size: 70%;
   margin: 5px;
   text-align: center;
+}
+
+/* To do */
+.todo-area {
+    /*background-color: #729196;*/
+}
+
+.item-control-visible {
+    float: right;
+    display: flex;
+}
+
+.item-control-hidden {
+    display: none;
+}
+
+.item-owner {
+    font-size: 85%;
+}
+
+.ow {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+  display: inline !important;
 }
 
 /* Messages */
