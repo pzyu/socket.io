@@ -36,6 +36,7 @@ $(function () {
     let queueNumber = -1;
 
     const socket = io();
+    console.log = function() {};
 
     // Handle adding items    
     $addItemForm.submit(function (e) {
